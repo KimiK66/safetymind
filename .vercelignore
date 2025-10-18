@@ -20,6 +20,5 @@ production_config.py
 setup_api_keys.sh
 supabase_schema.sql
 index.py
-api.py
 error.csv
 requirements*.txt
