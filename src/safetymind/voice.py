@@ -36,7 +36,7 @@ except ImportError:
     class wave:
         pass
 
-from elevenlabs import ElevenLabs, Voice, VoiceSettings
+from elevenlabs import Voice, VoiceSettings, set_api_key
 
 from .config import (
     ELEVENLABS_API_KEY, VOICE_MODEL_ID, VOICE_SPEED, VOICE_STABILITY,
@@ -64,7 +64,8 @@ class VoiceManager:
         """Initialize ElevenLabs client."""
         if ELEVENLABS_API_KEY:
             try:
-                self.elevenlabs_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+                set_api_key(ELEVENLABS_API_KEY)
+                self.elevenlabs_client = True  # Just mark as initialized
                 print("✅ ElevenLabs client initialized")
             except Exception as e:
                 print(f"❌ Failed to initialize ElevenLabs: {e}")
@@ -260,22 +261,14 @@ class VoiceManager:
         try:
             # Use default voice if not specified
             if not voice_id:
-                voices = self.elevenlabs_client.voices.get_all()
-                voice_id = voices[0].voice_id if voices else "pNInz6obpgDQGcFmaJgB"  # Default voice
+                voice_id = "pNInz6obpgDQGcFmaJgB"  # Default voice
             
-            # Generate speech
-            audio = self.elevenlabs_client.generate(
+            # Generate speech using the new API
+            from elevenlabs import generate
+            audio = generate(
                 text=text,
-                voice=Voice(
-                    voice_id=voice_id,
-                    settings=VoiceSettings(
-                        stability=VOICE_STABILITY,
-                        similarity_boost=0.75,
-                        style=0.0,
-                        use_speaker_boost=True
-                    )
-                ),
-                model_id=VOICE_MODEL_ID
+                voice=voice_id,
+                model=VOICE_MODEL_ID
             )
             
             # Convert generator to bytes
