@@ -10,10 +10,17 @@ import tempfile
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime
 
-import speech_recognition as sr
+# Import audio libraries with fallback for Vercel deployment
+try:
+    import speech_recognition as sr
+    import pyaudio
+    import wave
+    AUDIO_AVAILABLE = True
+except ImportError:
+    AUDIO_AVAILABLE = False
+    print("⚠️ Audio libraries not available (Vercel deployment)")
+
 from elevenlabs import ElevenLabs, Voice, VoiceSettings
-import pyaudio
-import wave
 
 from .config import (
     ELEVENLABS_API_KEY, VOICE_MODEL_ID, VOICE_SPEED, VOICE_STABILITY,
@@ -27,10 +34,15 @@ class VoiceManager:
     
     def __init__(self):
         self.elevenlabs_client = None
-        self.recognizer = sr.Recognizer()
-        self.microphone = sr.Microphone()
+        self.recognizer = None
+        self.microphone = None
+        
+        if AUDIO_AVAILABLE:
+            self.recognizer = sr.Recognizer()
+            self.microphone = sr.Microphone()
+            self._calibrate_microphone()
+        
         self._initialize_elevenlabs()
-        self._calibrate_microphone()
     
     def _initialize_elevenlabs(self):
         """Initialize ElevenLabs client."""
@@ -46,6 +58,10 @@ class VoiceManager:
     
     def _calibrate_microphone(self):
         """Calibrate microphone for ambient noise."""
+        if not AUDIO_AVAILABLE or not self.microphone:
+            print("⚠️ Microphone not available (Vercel deployment)")
+            return
+            
         try:
             with self.microphone as source:
                 self.recognizer.adjust_for_ambient_noise(source, duration=1)
@@ -55,6 +71,10 @@ class VoiceManager:
     
     def record_audio(self, duration: Optional[float] = None) -> Optional[bytes]:
         """Record audio from microphone."""
+        if not AUDIO_AVAILABLE or not self.microphone:
+            print("⚠️ Audio recording not available (Vercel deployment)")
+            return None
+            
         try:
             if duration is None:
                 duration = MAX_AUDIO_DURATION_SECONDS
@@ -75,6 +95,10 @@ class VoiceManager:
     
     def transcribe_audio(self, audio_data: bytes) -> Tuple[Optional[str], Optional[float]]:
         """Transcribe audio to text using speech recognition."""
+        if not AUDIO_AVAILABLE or not self.recognizer:
+            print("⚠️ Speech recognition not available (Vercel deployment)")
+            return None, None
+            
         try:
             # Create AudioData object from bytes
             audio_file = io.BytesIO(audio_data)
