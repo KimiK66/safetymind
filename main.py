@@ -1,5 +1,5 @@
-def handler(request):
-    """Ultra-simple Vercel Python function"""
+def main(request):
+    """Vercel Python function entry point"""
     return {
         "statusCode": 200,
         "headers": {
