@@ -1,4 +1,4 @@
-# Ignore everything except api.py and vercel.json
+# Ignore everything except main.py and vercel.json
 src/
 backup_apps/
 data/
@@ -22,5 +22,6 @@ production_config.py
 setup_api_keys.sh
 supabase_schema.sql
 index.py
+api.py
 error.csv
 requirements*.txt
