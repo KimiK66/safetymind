@@ -1,2 +1,1 @@
-# Modern Vercel Python runtime requirements
-# No dependencies needed for basic function
+# No dependencies - pure Python

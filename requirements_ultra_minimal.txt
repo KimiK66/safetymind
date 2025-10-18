@@ -1,5 +1,0 @@
-# Ultra-minimal requirements for Vercel
-# Only FastAPI and uvicorn - guaranteed to work
-
-fastapi==0.115.5
-uvicorn[standard]==0.32.0
