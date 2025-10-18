@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: safetymind
+  labels:
+    app: safetymind
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: safetymind
+  template:
+    metadata:
+      labels:
+        app: safetymind
+    spec:
+      containers:
+      - name: safetymind
+        image: safetymind:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: SAFETYMIND_HOST
+          value: "0.0.0.0"
+        - name: SAFETYMIND_PORT
+          value: "8000"
+        - name: SAFETYMIND_LOG_LEVEL
+          value: "INFO"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: safetymind-secrets
+              key: database-url
+        - name: ELEVENLABS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: safetymind-secrets
+              key: elevenlabs-api-key
+        - name: GROQ_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: safetymind-secrets
+              key: groq-api-key
+        - name: MEM0_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: safetymind-secrets
+              key: mem0-api-key
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+        - name: logs-volume
+          mountPath: /app/logs
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: safetymind-data-pvc
+      - name: logs-volume
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: safetymind-service
+spec:
+  selector:
+    app: safetymind
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: safetymind-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: safetymind-secrets
+type: Opaque
+data:
+  database-url: c3FsaXRlOi8vL2FwcC9zYWZldHltaW5kLmRi  # base64 encoded
+  elevenlabs-api-key: eW91cl9lbGV2ZW5sYWJzX2FwaV9rZXk=  # base64 encoded
+  groq-api-key: eW91cl9ncm9xX2FwaV9rZXk=  # base64 encoded
+  mem0-api-key: eW91cl9tZW0wX2FwaV9rZXk=  # base64 encoded

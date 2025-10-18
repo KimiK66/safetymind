@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  safetymind:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - SAFETYMIND_HOST=0.0.0.0
+      - SAFETYMIND_PORT=8000
+      - SAFETYMIND_LOG_LEVEL=INFO
+      - DATABASE_URL=sqlite:///app/safetymind.db
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - safetymind_db:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add PostgreSQL for production
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: safetymind
+      POSTGRES_USER: safetymind
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-safetymind123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    profiles:
+      - production
+
+  # Optional: Add Redis for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  safetymind_db:
+  postgres_data:
+  redis_data:

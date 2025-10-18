@@ -1,0 +1,38 @@
+# SafetyMind Environment Configuration
+# Copy this file to .env and add your actual API keys
+
+# ElevenLabs API Key for voice input/output
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+
+# Google API Key removed (video generation disabled for performance)
+
+# Groq API Key for enhanced AI analysis
+GROQ_API_KEY=your_groq_api_key_here
+
+# Mem0 API Key (if using cloud service)
+MEM0_API_KEY=your_mem0_api_key_here
+
+# Application Settings
+SAFETYMIND_HOST=0.0.0.0
+SAFETYMIND_PORT=8000
+SAFETYMIND_DEBUG=false
+SAFETYMIND_LOG_LEVEL=INFO
+
+# Database Settings (for production)
+# DATABASE_URL=postgresql://user:password@localhost/safetymind
+
+# Video storage settings removed (video generation disabled for performance)
+
+# Voice Settings
+VOICE_MODEL_ID=eleven_multilingual_v2
+VOICE_SPEED=1.0
+VOICE_STABILITY=0.5
+
+# Memory Settings
+MEMORY_MAX_CONTEXT_SIZE=10000
+MEMORY_LEARNING_RATE=0.1
+
+# Groq Settings
+GROQ_MODEL=llama-3.1-70b-versatile
+GROQ_MAX_TOKENS=4000
+GROQ_TEMPERATURE=0.7

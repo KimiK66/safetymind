@@ -1,0 +1,1378 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SafetyMind: AI Near‑Miss Reporter</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; line-height: 1.4; background: #f8fafc; }
+    h1 { margin: 0 0 16px; color: #1e293b; }
+    h2 { color: #334155; margin: 0 0 12px; }
+    form, section { border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    label { display: block; margin: 8px 0 4px; font-weight: 600; color: #374151; }
+    input, select, textarea { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; transition: border-color 0.2s; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1); }
+    button { background: #0ea5e9; color: white; border: 0; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: background-color 0.2s; }
+    button:hover { background: #0284c7; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    pre { white-space: pre-wrap; background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 13px; max-height: 400px; overflow-y: auto; }
+    .muted { color: #64748b; }
+    .success { color: #059669; font-weight: 500; }
+    .error { color: #dc2626; font-weight: 500; }
+    .warning { color: #d97706; font-weight: 500; }
+    .info { color: #2563eb; font-weight: 500; }
+    .ai-analysis { background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 12px; margin: 8px 0; border-radius: 4px; }
+    .risk-high { color: #dc2626; font-weight: bold; }
+    .risk-medium { color: #d97706; font-weight: bold; }
+    .risk-low { color: #059669; font-weight: bold; }
+    .report-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin: 8px 0; background: white; }
+    .report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .report-id { font-weight: bold; color: #0ea5e9; }
+    .report-status { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .status-draft { background: #fef3c7; color: #92400e; }
+    .status-submitted { background: #dbeafe; color: #1e40af; }
+    .status-underreview { background: #fce7f3; color: #be185d; }
+    .status-closed { background: #d1fae5; color: #065f46; }
+    .filter-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px; }
+    .filter-group { display: flex; flex-direction: column; }
+    .filter-group label { font-size: 12px; margin-bottom: 2px; }
+    .filter-group input, .filter-group select { font-size: 13px; padding: 6px; }
+    .loading { opacity: 0.6; pointer-events: none; }
+    .error-message { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 8px; border-radius: 4px; margin: 8px 0; }
+    .success-message { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; padding: 8px; border-radius: 4px; margin: 8px 0; }
+    .info-message { background: #eff6ff; border: 1px solid #bfdbfe; color: #2563eb; padding: 8px; border-radius: 4px; margin: 8px 0; }
+    .charts-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin: 16px 0; }
+    .chart-wrapper { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .chart-title { font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 12px; text-align: center; }
+    .chart-canvas { max-height: 300px; }
+
+    /* Voice Input Styles */
+    .voice-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .voice-btn {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .voice-btn:hover {
+      background: #45a049;
+    }
+
+    .voice-btn.recording {
+      background: #f44336;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+
+    .voice-status {
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      min-width: 120px;
+    }
+
+    .voice-status.recording {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .voice-status.processing {
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+
+    .voice-status.completed {
+      background: #e8f5e8;
+      color: #2e7d32;
+    }
+
+    .voice-transcript {
+      background: #f5f5f5;
+      padding: 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+
+    .voice-analysis {
+      background: #e3f2fd;
+      padding: 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+
+    .voice-fields-preview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .field-preview {
+      background: white;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+
+    .field-preview strong {
+      color: #1976d2;
+    }
+
+    /* Form Enhancement Styles */
+    .form-section {
+      background: #fafafa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .form-section h3 {
+      margin: 0 0 16px 0;
+      color: #333;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .input-group {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-group input,
+    .input-group textarea,
+    .input-group select {
+      flex: 1;
+      margin-right: 8px;
+    }
+
+    .voice-field-btn {
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      min-width: 40px;
+    }
+
+    .voice-field-btn:hover {
+      background: #1976D2;
+    }
+
+    .voice-field-btn.recording {
+      background: #f44336;
+      animation: pulse 1s infinite;
+    }
+
+    /* AI Analysis Styles */
+    .analysis-section {
+      margin-bottom: 24px;
+    }
+
+    .analysis-box {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .analysis-box h4 {
+      margin: 0 0 12px 0;
+      color: #1976d2;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .analysis-box ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .analysis-box li {
+      margin-bottom: 8px;
+      color: #555;
+    }
+
+    .similar-incident-item {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border-left: 4px solid #2196F3;
+    }
+
+    .similar-incident-item h5 {
+      margin: 0 0 4px 0;
+      color: #333;
+      font-size: 14px;
+    }
+
+    .similar-incident-item p {
+      margin: 0;
+      color: #666;
+      font-size: 12px;
+    }
+
+    .pattern-item {
+      background: #fff3e0;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border-left: 4px solid #ff9800;
+    }
+
+    .protocol-item {
+      background: #e8f5e8;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border-left: 4px solid #4caf50;
+    }
+
+    /* Video Generation Styles */
+    .video-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .video-btn {
+      background: #9c27b0;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .video-btn:hover {
+      background: #7b1fa2;
+    }
+
+    .video-btn.generating {
+      background: #ff9800;
+      animation: pulse 1s infinite;
+    }
+
+    .video-status {
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      min-width: 120px;
+    }
+
+    .video-status.generating {
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+
+    .video-status.completed {
+      background: #e8f5e8;
+      color: #2e7d32;
+    }
+
+    .video-status.failed {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .video-player {
+      background: #f5f5f5;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .video-content {
+      background: #000;
+      border-radius: 8px;
+      padding: 20px;
+      color: white;
+      text-align: center;
+      margin-bottom: 16px;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .video-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .video-storyboard {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .storyboard-scenes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .scene-item {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .scene-item h5 {
+      margin: 0 0 8px 0;
+      color: #1976d2;
+      font-size: 14px;
+    }
+
+    .scene-item p {
+      margin: 0;
+      color: #666;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <h1>SafetyMind</h1>
+
+  <!-- Voice Input Panel -->
+  <section id="voice-panel">
+    <h2>🎤 Voice Input</h2>
+    <div class="voice-controls">
+      <button id="voice-record-btn" class="voice-btn">
+        <span class="voice-icon">🎤</span>
+        <span class="voice-text">Describe Incident</span>
+      </button>
+      <button id="voice-stop-btn" class="voice-btn" style="display: none;">
+        <span class="voice-icon">⏹️</span>
+        <span class="voice-text">Stop Recording</span>
+      </button>
+      <div id="voice-status" class="voice-status"></div>
+    </div>
+    <div id="voice-transcript" class="voice-transcript" style="display: none;">
+      <h3>Transcription:</h3>
+      <textarea id="transcript-text" rows="3" readonly></textarea>
+      <button id="voice-apply-btn" class="voice-btn">Apply to Form</button>
+      <button id="voice-clear-btn" class="voice-btn">Clear</button>
+    </div>
+    <div id="voice-analysis" class="voice-analysis" style="display: none;">
+      <h3>AI Analysis:</h3>
+      <div id="voice-fields-preview"></div>
+    </div>
+  </section>
+
+  <form id="report-form">
+    <h2>Report Near‑Miss / Incident</h2>
+    
+    <!-- Enhanced form fields -->
+    <div class="form-section">
+      <h3>Basic Information</h3>
+      <label>Title</label>
+      <div class="input-group">
+        <input id="title" required />
+        <button type="button" class="voice-field-btn" data-field="title">🎤</button>
+      </div>
+      
+      <label>Description</label>
+      <div class="input-group">
+        <textarea id="description" rows="4" required></textarea>
+        <button type="button" class="voice-field-btn" data-field="description">🎤</button>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>Incident Details</h3>
+      <div class="row">
+        <div>
+          <label>Event Type</label>
+          <div class="input-group">
+            <select id="event_type">
+              <option>NearMiss</option>
+              <option>Incident</option>
+              <option>Accident</option>
+            </select>
+            <button type="button" class="voice-field-btn" data-field="event_type">🎤</button>
+          </div>
+        </div>
+        <div>
+          <label>Location</label>
+          <div class="input-group">
+            <input id="location" />
+            <button type="button" class="voice-field-btn" data-field="location">🎤</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="row">
+        <div>
+          <label>Activity</label>
+          <div class="input-group">
+            <input id="activity" />
+            <button type="button" class="voice-field-btn" data-field="activity">🎤</button>
+          </div>
+        </div>
+        <div>
+          <label>Reporter (optional)</label>
+          <input id="reported_by" />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>Additional Details</h3>
+      <div class="row">
+        <div>
+          <label>Witnesses</label>
+          <input id="witnesses" placeholder="Comma-separated names" />
+        </div>
+        <div>
+          <label>Equipment Involved</label>
+          <input id="equipment" placeholder="Comma-separated equipment" />
+        </div>
+      </div>
+      
+      <div class="row">
+        <div>
+          <label>Weather Conditions</label>
+          <select id="weather">
+            <option value="">Select weather</option>
+            <option>Clear</option>
+            <option>Rain</option>
+            <option>Wind</option>
+            <option>Storm</option>
+            <option>Fog</option>
+            <option>Hot</option>
+            <option>Cold</option>
+          </select>
+        </div>
+        <div>
+          <label>Time of Day</label>
+          <select id="time_of_day">
+            <option value="">Select time</option>
+            <option>Morning</option>
+            <option>Afternoon</option>
+            <option>Evening</option>
+            <option>Night</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="row">
+        <div>
+          <label>Cost Estimate (USD)</label>
+          <input id="cost_estimate" type="number" placeholder="0.00" />
+        </div>
+        <div>
+          <label>Images</label>
+          <input id="images" type="file" multiple accept="image/*" />
+        </div>
+      </div>
+    </div>
+
+    <div id="form-messages"></div>
+    <div style="margin-top:12px">
+      <button id="submit-btn" type="submit">Submit</button>
+      <span id="submit-msg" class="muted"></span>
+    </div>
+  </form>
+
+  <!-- AI Analysis Panel -->
+  <section id="ai-analysis-panel" style="display: none;">
+    <h2>🤖 AI Analysis</h2>
+    
+    <div class="analysis-section">
+      <h3>Incident Analysis</h3>
+      <div id="immediate-causes" class="analysis-box">
+        <h4>Immediate Causes:</h4>
+        <ul id="immediate-causes-list"></ul>
+      </div>
+      <div id="underlying-causes" class="analysis-box">
+        <h4>Underlying Causes:</h4>
+        <ul id="underlying-causes-list"></ul>
+      </div>
+      <div id="ai-suggestions" class="analysis-box">
+        <h4>AI Suggestions:</h4>
+        <ul id="ai-suggestions-list"></ul>
+      </div>
+    </div>
+
+    <div class="analysis-section">
+      <h3>Memory Insights</h3>
+      <div id="similar-incidents" class="analysis-box">
+        <h4>Similar Past Incidents:</h4>
+        <div id="similar-incidents-list"></div>
+      </div>
+      <div id="learned-patterns" class="analysis-box">
+        <h4>Learned Patterns:</h4>
+        <div id="learned-patterns-list"></div>
+      </div>
+      <div id="safety-protocols" class="analysis-box">
+        <h4>Applicable Safety Protocols:</h4>
+        <div id="safety-protocols-list"></div>
+      </div>
+    </div>
+
+    <div class="analysis-section">
+      <h3>Industry Benchmark</h3>
+      <div id="industry-comparison" class="analysis-box">
+        <h4>Industry Comparison:</h4>
+        <div id="benchmark-data"></div>
+      </div>
+    </div>
+  </section>
+
+    <!-- Video generation removed for performance optimization -->
+
+  <section>
+    <h2>Search & Filter Reports</h2>
+    <div class="filter-section">
+      <div class="filter-group">
+        <label>Keyword Search</label>
+        <input id="search" placeholder="e.g., compressor, leak, injury" />
+      </div>
+      <div class="filter-group">
+        <label>Event Type</label>
+        <select id="filter_event_type">
+          <option value="">All Types</option>
+          <option value="NearMiss">Near Miss</option>
+          <option value="Incident">Incident</option>
+          <option value="Accident">Accident</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Severity</label>
+        <select id="filter_severity">
+          <option value="">All Severities</option>
+          <option value="Insignificant">Insignificant</option>
+          <option value="Minor">Minor</option>
+          <option value="Moderate">Moderate</option>
+          <option value="Major">Major</option>
+          <option value="Catastrophic">Catastrophic</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Risk Level</label>
+        <select id="filter_risk_level">
+          <option value="">All Risk Levels</option>
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Location</label>
+        <select id="filter_location">
+          <option value="">All Locations</option>
+          <option value="Platform A">Platform A</option>
+          <option value="Platform B">Platform B</option>
+          <option value="Compression Station">Compression Station</option>
+          <option value="Processing Plant">Processing Plant</option>
+          <option value="Pipeline">Pipeline</option>
+          <option value="Offshore">Offshore</option>
+          <option value="Onshore">Onshore</option>
+          <option value="Maintenance Yard">Maintenance Yard</option>
+          <option value="Control Room">Control Room</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Activity</label>
+        <select id="filter_activity">
+          <option value="">All Activities</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="inspection">Inspection</option>
+          <option value="repair">Repair</option>
+          <option value="operation">Operation</option>
+          <option value="construction">Construction</option>
+          <option value="testing">Testing</option>
+          <option value="cleaning">Cleaning</option>
+          <option value="transport">Transport</option>
+          <option value="emergency">Emergency Response</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Status</label>
+        <select id="filter_status">
+          <option value="">All Statuses</option>
+          <option value="Draft">Draft</option>
+          <option value="Submitted">Submitted</option>
+          <option value="UnderReview">Under Review</option>
+          <option value="Closed">Closed</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:8px">
+      <button id="search-btn">Search</button>
+      <button id="clear-filters-btn" type="button">Clear Filters</button>
+      <button id="refresh-btn" type="button">Refresh All</button>
+      <button id="export-btn" type="button">Export CSV</button>
+    </div>
+    <div id="results-container">
+      <div id="results-summary" class="muted"></div>
+      <div id="results"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Analytics Summary</h2>
+    <button id="summary-btn" type="button">Load Summary</button>
+    <div id="summary-charts" class="charts-container" style="display: none;">
+      <div class="chart-wrapper">
+        <div class="chart-title">Reports by Event Type</div>
+        <canvas id="eventTypeChart" class="chart-canvas"></canvas>
+      </div>
+      <div class="chart-wrapper">
+        <div class="chart-title">Reports by Severity</div>
+        <canvas id="severityChart" class="chart-canvas"></canvas>
+      </div>
+      <div class="chart-wrapper">
+        <div class="chart-title">Reports by Consequence</div>
+        <canvas id="consequenceChart" class="chart-canvas"></canvas>
+      </div>
+      <div class="chart-wrapper">
+        <div class="chart-title">Severity Index Over Time</div>
+        <canvas id="severityIndexChart" class="chart-canvas"></canvas>
+      </div>
+    </div>
+    <pre id="summary-text" class="muted">No summary loaded.</pre>
+  </section>
+
+  <section>
+    <h2>Benchmark (Oil & Gas)</h2>
+    <button id="bench-btn" type="button">Run Benchmark</button>
+    <div id="benchmark-charts" class="charts-container" style="display: none;">
+      <div class="chart-wrapper">
+        <div class="chart-title">Near-miss Rate Comparison</div>
+        <canvas id="nearMissRateChart" class="chart-canvas"></canvas>
+      </div>
+      <div class="chart-wrapper">
+        <div class="chart-title">Incident Rate Comparison</div>
+        <canvas id="incidentRateChart" class="chart-canvas"></canvas>
+      </div>
+      <div class="chart-wrapper">
+        <div class="chart-title">Severe Share Comparison</div>
+        <canvas id="severeShareChart" class="chart-canvas"></canvas>
+      </div>
+    </div>
+    <pre id="benchmark-text" class="muted">No benchmark yet.</pre>
+  </section>
+
+  <section>
+    <h2>Reviewer</h2>
+    <div class="row">
+      <div>
+        <label>Username</label>
+        <input id="auth_user" value="reviewer" />
+      </div>
+      <div>
+        <label>Password</label>
+        <input id="auth_pass" type="password" value="reviewer" />
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Report ID</label>
+        <input id="rev_report_id" />
+      </div>
+      <div>
+        <label>New Status</label>
+        <select id="rev_status">
+          <option>Draft</option>
+          <option>Submitted</option>
+          <option>UnderReview</option>
+          <option>Closed</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>CAPA Note</label>
+        <input id="rev_capa_note" placeholder="e.g., Inspect relief valves" />
+      </div>
+      <div style="align-self:end">
+        <button id="rev_status_btn" type="button">Update Status</button>
+        <button id="rev_capa_btn" type="button">Add CAPA</button>
+      </div>
+    </div>
+    <pre id="rev_msg" class="muted">Not signed in.</pre>
+  </section>
+
+<script>
+const API = location.origin;
+
+function showMessage(message, type = 'info') {
+  const container = document.getElementById('form-messages');
+  const messageEl = document.createElement('div');
+  messageEl.className = `${type}-message`;
+  messageEl.textContent = message;
+  container.appendChild(messageEl);
+  
+  // Auto-remove after 5 seconds
+  setTimeout(() => {
+    if (messageEl.parentNode) {
+      messageEl.parentNode.removeChild(messageEl);
+    }
+  }, 5000);
+}
+
+function clearMessages() {
+  const container = document.getElementById('form-messages');
+  container.innerHTML = '';
+}
+
+function basicAuthHeader(){
+  const u = document.getElementById('auth_user')?.value || 'reporter';
+  const p = document.getElementById('auth_pass')?.value || 'reporter';
+  const t = btoa(`${u}:${p}`);
+  return { 'Authorization': `Basic ${t}` };
+}
+
+async function postJSON(url, data, auth=false) {
+  const headers = { 'Content-Type': 'application/json' };
+  const res = await fetch(url, { method: 'POST', headers: auth ? Object.assign(headers, basicAuthHeader()) : headers, body: JSON.stringify(data) });
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`HTTP ${res.status}: ${errorText}`);
+  }
+  return res.json();
+}
+async function getJSON(url, auth=false) {
+  const headers = auth ? basicAuthHeader() : {};
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`HTTP ${res.status}: ${errorText}`);
+  }
+  return res.json();
+}
+
+// Submit form
+const form = document.getElementById('report-form');
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  const msg = document.getElementById('submit-msg');
+  
+  // Clear previous messages
+  clearMessages();
+  
+  btn.disabled = true; 
+  msg.textContent = 'Submitting...';
+  btn.classList.add('loading');
+  
+  try {
+    const payload = {
+      title: document.getElementById('title').value,
+      description: document.getElementById('description').value,
+      event_type: document.getElementById('event_type').value,
+      location: document.getElementById('location').value || null,
+      activity: document.getElementById('activity').value || null,
+      reported_by: document.getElementById('reported_by').value || null
+    };
+    
+    // Validate required fields
+    if (!payload.title.trim()) {
+      throw new Error('Title is required');
+    }
+    if (!payload.description.trim()) {
+      throw new Error('Description is required');
+    }
+    if (payload.description.trim().length < 10) {
+      throw new Error('Description must be at least 10 characters long');
+    }
+    
+    // Report creation requires auth (reporter/reviewer)
+    const created = await postJSON(`${API}/reports`, payload, true);
+    msg.textContent = `Created report #${created.id}`;
+    showMessage(`✅ Report #${created.id} created successfully!`, 'success');
+    
+    // Clear form
+    form.reset();
+    
+    await loadReports();
+    await loadSummary();
+  } catch (err) {
+    const errorMsg = err.message || err;
+    msg.textContent = `Error: ${errorMsg}`;
+    showMessage(`❌ ${errorMsg}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+});
+
+async function loadReports() {
+  const results = document.getElementById('results');
+  const summary = document.getElementById('results-summary');
+  results.innerHTML = '<div class="muted">Loading...</div>';
+  
+  try {
+    // Build query parameters
+    const params = new URLSearchParams();
+    const search = document.getElementById('search').value;
+    const eventType = document.getElementById('filter_event_type').value;
+    const severity = document.getElementById('filter_severity').value;
+    const riskLevel = document.getElementById('filter_risk_level').value;
+    const location = document.getElementById('filter_location').value;
+    const activity = document.getElementById('filter_activity').value;
+    const status = document.getElementById('filter_status').value;
+    
+    if (search) params.append('q', search);
+    if (eventType) params.append('event_type', eventType);
+    if (severity) params.append('severity', severity);
+    if (riskLevel) params.append('risk_level', riskLevel);
+    if (location) params.append('location', location);
+    if (activity) params.append('activity', activity);
+    if (status) params.append('status', status);
+    
+    const url = `${API}/reports?${params.toString()}`;
+    console.log('Loading reports from:', url);
+    const data = await getJSON(url, false);
+    console.log('Loaded reports:', data);
+    
+    // Update summary
+    summary.textContent = `Found ${data.length} report(s)`;
+    
+    // Display reports in cards
+    if (data.length === 0) {
+      results.innerHTML = '<div class="muted">No reports found matching your criteria.</div>';
+      return;
+    }
+    
+    results.innerHTML = data.map(report => `
+      <div class="report-card">
+        <div class="report-header">
+          <span class="report-id">#${report.id}</span>
+          <span class="report-status status-${report.status.toLowerCase()}">${report.status}</span>
+        </div>
+        <h3 style="margin: 0 0 8px; color: #1e293b;">${report.title}</h3>
+        <p style="margin: 0 0 8px; color: #64748b;">${report.description}</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; font-size: 13px;">
+          <div><strong>Type:</strong> ${report.event_type}</div>
+          <div><strong>Severity:</strong> ${report.severity || 'Not assessed'}</div>
+          <div><strong>Risk:</strong> <span class="risk-${report.risk_level?.toLowerCase() || 'unknown'}">${report.risk_level || 'Unknown'}</span></div>
+          <div><strong>Location:</strong> ${report.location || 'Not specified'}</div>
+          <div><strong>Date:</strong> ${new Date(report.occurred_at).toLocaleDateString()}</div>
+          <div><strong>Reporter:</strong> ${report.reported_by || 'Anonymous'}</div>
+        </div>
+        ${report.immediate_causes && report.immediate_causes.length > 0 ? `
+          <div class="ai-analysis">
+            <strong>Immediate Causes:</strong> ${report.immediate_causes.join(', ')}
+          </div>
+        ` : ''}
+        ${report.underlying_causes && report.underlying_causes.length > 0 ? `
+          <div class="ai-analysis">
+            <strong>Underlying Causes:</strong> ${report.underlying_causes.join(', ')}
+          </div>
+        ` : ''}
+        ${report.ai_analysis && report.ai_analysis.suggested_actions && report.ai_analysis.suggested_actions.length > 0 ? `
+          <div class="ai-analysis">
+            <strong>AI Suggestions:</strong> ${report.ai_analysis.suggested_actions.join('; ')}
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+    
+  } catch (err) {
+    console.error('Error loading reports:', err);
+    results.innerHTML = `<div class="error">Error: ${err.message || err}</div>`;
+  }
+}
+
+// Chart instances
+let charts = {};
+
+function createPieChart(canvasId, data, colors) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  
+  // Destroy existing chart if it exists
+  if (charts[canvasId]) {
+    charts[canvasId].destroy();
+  }
+  
+  charts[canvasId] = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: Object.keys(data),
+      datasets: [{
+        data: Object.values(data),
+        backgroundColor: colors,
+        borderColor: '#ffffff',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            padding: 20,
+            usePointStyle: true
+          }
+        }
+      }
+    }
+  });
+}
+
+function createBarChart(canvasId, data, colors, label) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  
+  // Destroy existing chart if it exists
+  if (charts[canvasId]) {
+    charts[canvasId].destroy();
+  }
+  
+  charts[canvasId] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(data),
+      datasets: [{
+        label: label,
+        data: Object.values(data),
+        backgroundColor: colors,
+        borderColor: colors.map(color => color.replace('0.8', '1')),
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            precision: 0
+          }
+        }
+      }
+    }
+  });
+}
+
+async function loadSummary() {
+  const el = document.getElementById('summary-text');
+  const chartsContainer = document.getElementById('summary-charts');
+  
+  el.textContent = 'Loading...';
+  chartsContainer.style.display = 'none';
+  
+  try {
+    console.log('Loading summary from:', `${API}/analytics/summary`);
+    const data = await getJSON(`${API}/analytics/summary`, false);
+    console.log('Loaded summary:', data);
+    
+    // Format the summary data nicely
+    let formatted = `📈 Analytics Summary\n`;
+    formatted += `Total Reports: ${data.total_reports}\n`;
+    formatted += `Severity Index: ${data.severity_index.toFixed(2)}\n\n`;
+    
+    formatted += `📊 By Event Type:\n`;
+    for (const [type, count] of Object.entries(data.by_event_type)) {
+      formatted += `  ${type}: ${count}\n`;
+    }
+    
+    formatted += `\n📊 By Consequence:\n`;
+    for (const [consequence, count] of Object.entries(data.by_consequence)) {
+      formatted += `  ${consequence}: ${count}\n`;
+    }
+    
+    formatted += `\n📊 By Severity:\n`;
+    for (const [severity, count] of Object.entries(data.by_severity)) {
+      formatted += `  ${severity}: ${count}\n`;
+    }
+    
+    el.textContent = formatted;
+    
+    // Create charts
+    if (data.total_reports > 0) {
+      const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
+      
+      // Event Type Chart
+      if (Object.keys(data.by_event_type).length > 0) {
+        createPieChart('eventTypeChart', data.by_event_type, colors.slice(0, Object.keys(data.by_event_type).length));
+      }
+      
+      // Severity Chart
+      if (Object.keys(data.by_severity).length > 0) {
+        createPieChart('severityChart', data.by_severity, colors.slice(0, Object.keys(data.by_severity).length));
+      }
+      
+      // Consequence Chart
+      if (Object.keys(data.by_consequence).length > 0) {
+        createPieChart('consequenceChart', data.by_consequence, colors.slice(0, Object.keys(data.by_consequence).length));
+      }
+      
+      // Severity Index Chart (simple bar chart showing the index)
+      createBarChart('severityIndexChart', { 'Current Index': data.severity_index }, ['#3b82f6'], 'Severity Index');
+      
+      // Show charts
+      chartsContainer.style.display = 'grid';
+    }
+    
+  } catch (err) {
+    console.error('Error loading summary:', err);
+    el.textContent = `Error: ${err.message || err}`;
+  }
+}
+
+async function loadBenchmark() {
+  const el = document.getElementById('benchmark-text');
+  const chartsContainer = document.getElementById('benchmark-charts');
+  
+  el.textContent = 'Loading...';
+  chartsContainer.style.display = 'none';
+  
+  try {
+    console.log('Loading benchmark from:', `${API}/analytics/benchmark`);
+    const data = await getJSON(`${API}/analytics/benchmark`, false);
+    console.log('Loaded benchmark:', data);
+    
+    // Format the benchmark data nicely
+    let formatted = `📊 Benchmark Analysis (Oil & Gas Industry)\n\n`;
+    
+    if (data.error) {
+      formatted += `❌ Error: ${data.error}\n`;
+      el.textContent = formatted;
+    } else {
+      for (const metric of data) {
+        formatted += `📈 ${metric.metric}:\n`;
+        formatted += `  Organization: ${metric.organization_value.toFixed(2)} ${metric.unit}\n`;
+        formatted += `  Benchmark: ${metric.benchmark_value.toFixed(2)} ${metric.unit}\n`;
+        formatted += `  Difference: ${metric.delta >= 0 ? '+' : ''}${metric.delta.toFixed(2)} ${metric.unit}\n`;
+        formatted += `  Interpretation: ${metric.interpretation}\n\n`;
+      }
+      
+      el.textContent = formatted;
+      
+      // Create benchmark charts
+      if (data.length > 0) {
+        // Find specific metrics
+        const nearMissMetric = data.find(m => m.metric === "Near-miss rate");
+        const incidentMetric = data.find(m => m.metric === "Incident rate");
+        const severeMetric = data.find(m => m.metric === "Severe share");
+        
+        // Create comparison charts
+        if (nearMissMetric) {
+          createBarChart('nearMissRateChart', 
+            { 'Organization': nearMissMetric.organization_value, 'Benchmark': nearMissMetric.benchmark_value },
+            ['#3b82f6', '#10b981'], 'Rate per 200k hrs');
+        }
+        
+        if (incidentMetric) {
+          createBarChart('incidentRateChart', 
+            { 'Organization': incidentMetric.organization_value, 'Benchmark': incidentMetric.benchmark_value },
+            ['#ef4444', '#f59e0b'], 'Rate per 200k hrs');
+        }
+        
+        if (severeMetric) {
+          createBarChart('severeShareChart', 
+            { 'Organization': severeMetric.organization_value, 'Benchmark': severeMetric.benchmark_value },
+            ['#8b5cf6', '#06b6d4'], 'Fraction');
+        }
+        
+        // Show charts
+        chartsContainer.style.display = 'grid';
+      }
+    }
+    
+  } catch (err) {
+    console.error('Error loading benchmark:', err);
+    el.textContent = `Error: ${err.message || err}`;
+  }
+}
+
+// Export functionality
+async function exportReports() {
+  try {
+    const response = await fetch(`${API}/export?format=csv&redact_pii=true`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    const csv = await response.text();
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `safetymind-reports-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    alert(`Export failed: ${err.message}`);
+  }
+}
+
+// Event listeners
+document.getElementById('search-btn').addEventListener('click', loadReports);
+document.getElementById('refresh-btn').addEventListener('click', loadReports);
+document.getElementById('export-btn').addEventListener('click', exportReports);
+document.getElementById('summary-btn').addEventListener('click', loadSummary);
+document.getElementById('bench-btn').addEventListener('click', loadBenchmark);
+
+// Clear filters functionality
+document.getElementById('clear-filters-btn').addEventListener('click', () => {
+  document.getElementById('search').value = '';
+  document.getElementById('filter_event_type').value = '';
+  document.getElementById('filter_severity').value = '';
+  document.getElementById('filter_risk_level').value = '';
+  document.getElementById('filter_location').value = '';
+  document.getElementById('filter_activity').value = '';
+  document.getElementById('filter_status').value = '';
+  loadReports();
+});
+
+// Auto-search on filter changes
+['search', 'filter_event_type', 'filter_severity', 'filter_risk_level', 'filter_location', 'filter_activity', 'filter_status'].forEach(id => {
+  document.getElementById(id).addEventListener('change', loadReports);
+});
+
+document.getElementById('rev_status_btn').addEventListener('click', async () => {
+  const id = document.getElementById('rev_report_id').value;
+  const body = { new_status: document.getElementById('rev_status').value };
+  const msg = document.getElementById('rev_msg');
+  msg.textContent = 'Updating...';
+  try {
+    const r = await postJSON(`${API}/reports/${id}/status`, body, true);
+    msg.textContent = JSON.stringify(r);
+    await loadReports();
+    await loadSummary();
+  } catch (e) {
+    msg.textContent = `Error: ${e}`;
+  }
+});
+
+document.getElementById('rev_capa_btn').addEventListener('click', async () => {
+  const id = document.getElementById('rev_report_id').value;
+  const body = { note: document.getElementById('rev_capa_note').value };
+  const msg = document.getElementById('rev_msg');
+  msg.textContent = 'Adding CAPA...';
+  try {
+    const r = await postJSON(`${API}/reports/${id}/capa`, body, true);
+    msg.textContent = JSON.stringify(r);
+  } catch (e) {
+    msg.textContent = `Error: ${e}`;
+  }
+});
+
+// Voice Input Functionality
+let isRecording = false;
+let mediaRecorder = null;
+let audioChunks = [];
+
+// Voice recording functions
+async function startVoiceRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (event) => {
+      audioChunks.push(event.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+      processVoiceInput(audioBlob);
+    };
+
+    mediaRecorder.start();
+    isRecording = true;
+    
+    document.getElementById('voice-record-btn').style.display = 'none';
+    document.getElementById('voice-stop-btn').style.display = 'flex';
+    document.getElementById('voice-status').textContent = 'Recording...';
+    document.getElementById('voice-status').className = 'voice-status recording';
+    
+  } catch (error) {
+    showMessage('Microphone access denied or not available', 'error');
+  }
+}
+
+function stopVoiceRecording() {
+  if (mediaRecorder && isRecording) {
+    mediaRecorder.stop();
+    isRecording = false;
+    
+    document.getElementById('voice-record-btn').style.display = 'flex';
+    document.getElementById('voice-stop-btn').style.display = 'none';
+    document.getElementById('voice-status').textContent = 'Processing...';
+    document.getElementById('voice-status').className = 'voice-status processing';
+  }
+}
+
+async function processVoiceInput(audioBlob) {
+  try {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.wav');
+
+    const response = await fetch(`${API}/reports/voice`, {
+      method: 'POST',
+      headers: basicAuthHeader(),
+      body: formData
+    });
+
+    const result = await response.json();
+    
+    if (result.transcript) {
+      document.getElementById('transcript-text').value = result.transcript;
+      document.getElementById('voice-transcript').style.display = 'block';
+      
+      if (result.parsed_fields) {
+        displayVoiceAnalysis(result.parsed_fields);
+      }
+    }
+    
+    document.getElementById('voice-status').textContent = 'Completed';
+    document.getElementById('voice-status').className = 'voice-status completed';
+    
+  } catch (error) {
+    showMessage('Voice processing failed: ' + error.message, 'error');
+    document.getElementById('voice-status').textContent = 'Failed';
+    document.getElementById('voice-status').className = 'voice-status';
+  }
+}
+
+function displayVoiceAnalysis(fields) {
+  const preview = document.getElementById('voice-fields-preview');
+  preview.innerHTML = '';
+  
+  Object.entries(fields).forEach(([field, value]) => {
+    if (value) {
+      const fieldDiv = document.createElement('div');
+      fieldDiv.className = 'field-preview';
+      fieldDiv.innerHTML = `<strong>${field}:</strong> ${value}`;
+      preview.appendChild(fieldDiv);
+    }
+  });
+  
+  document.getElementById('voice-analysis').style.display = 'block';
+}
+
+// Voice button event listeners
+document.getElementById('voice-record-btn').onclick = startVoiceRecording;
+document.getElementById('voice-stop-btn').onclick = stopVoiceRecording;
+
+document.getElementById('voice-apply-btn').onclick = () => {
+  const transcript = document.getElementById('transcript-text').value;
+  if (transcript) {
+    document.getElementById('description').value = transcript;
+  }
+};
+
+document.getElementById('voice-clear-btn').onclick = () => {
+  document.getElementById('voice-transcript').style.display = 'none';
+  document.getElementById('voice-analysis').style.display = 'none';
+  document.getElementById('transcript-text').value = '';
+  document.getElementById('voice-fields-preview').innerHTML = '';
+};
+
+// Video generation removed for performance optimization
+
+// displayVideo function removed for performance optimization
+
+// AI Analysis Display
+function displayAIAnalysis(reportId) {
+  fetch(`${API}/reports/${reportId}`)
+    .then(r => r.json())
+    .then(report => {
+      const panel = document.getElementById('ai-analysis-panel');
+      
+      const immediateList = document.getElementById('immediate-causes-list');
+      immediateList.innerHTML = '';
+      if (report.immediate_causes) {
+        report.immediate_causes.forEach(cause => {
+          const li = document.createElement('li');
+          li.textContent = cause;
+          immediateList.appendChild(li);
+        });
+      }
+
+      const underlyingList = document.getElementById('underlying-causes-list');
+      underlyingList.innerHTML = '';
+      if (report.underlying_causes) {
+        report.underlying_causes.forEach(cause => {
+          const li = document.createElement('li');
+          li.textContent = cause;
+          underlyingList.appendChild(li);
+        });
+      }
+
+      const suggestionsList = document.getElementById('ai-suggestions-list');
+      suggestionsList.innerHTML = '';
+      if (report.ai_analysis && report.ai_analysis.suggestions) {
+        report.ai_analysis.suggestions.forEach(suggestion => {
+          const li = document.createElement('li');
+          li.textContent = suggestion;
+          suggestionsList.appendChild(li);
+        });
+      }
+
+      panel.style.display = 'block';
+    })
+    .catch(error => {
+      showMessage('Failed to load AI analysis: ' + error.message, 'error');
+    });
+}
+
+// Show AI Analysis Panel when report is selected
+document.getElementById('rev_report_id').addEventListener('input', (e) => {
+  const reportId = e.target.value;
+  if (reportId) {
+    displayAIAnalysis(reportId);
+    document.getElementById('video-panel').style.display = 'block';
+  } else {
+    document.getElementById('ai-analysis-panel').style.display = 'none';
+    document.getElementById('video-panel').style.display = 'none';
+  }
+});
+
+// Initial load
+console.log('SafetyMind web interface loading...');
+console.log('API base URL:', API);
+loadReports();
+loadSummary();
+</script>
+</body>
+</html>
