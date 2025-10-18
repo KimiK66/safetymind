@@ -1,46 +1,40 @@
 """
-SafetyMind Railway Entry Point
-Optimized for Railway deployment
+SafetyMind Vercel Test - Minimal Version
+This is a test to see if Vercel can run our basic FastAPI setup
 """
 
-import os
-import sys
-from pathlib import Path
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
-# Add src directory to Python path
-project_root = Path(__file__).parent
-src_dir = project_root / "src"
-if str(src_dir) not in sys.path:
-    sys.path.insert(0, str(src_dir))
+# Create a minimal FastAPI app for testing
+app = FastAPI(title="SafetyMind Test", description="Testing Vercel deployment")
 
-try:
-    # Import the FastAPI app
-    from safetymind.api import create_app
-    
-    # Create the app instance
-    app = create_app()
-    
-except Exception as e:
-    print(f"❌ Error creating app: {e}")
-    import traceback
-    traceback.print_exc()
-    
-    # Create a minimal FastAPI app as fallback
-    from fastapi import FastAPI
-    from fastapi.responses import JSONResponse
-    
-    app = FastAPI(title="SafetyMind", description="AI-Powered Incident Reporting")
-    
-    @app.get("/")
-    def root():
-        return {"message": "SafetyMind API is running", "status": "error", "error": str(e)}
-    
-    @app.get("/health")
-    def health():
-        return {"status": "error", "error": str(e)}
+@app.get("/")
+def root():
+    return {
+        "message": "SafetyMind API Test", 
+        "status": "working",
+        "version": "test-1.0",
+        "platform": "vercel"
+    }
 
-# For Railway deployment
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy",
+        "timestamp": "2025-01-18T12:00:00Z",
+        "test": "minimal-vercel-test"
+    }
+
+@app.get("/test")
+def test():
+    return {
+        "test": "success",
+        "message": "Vercel can run FastAPI",
+        "next_step": "add_module_imports"
+    }
+
+# For Vercel deployment
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
