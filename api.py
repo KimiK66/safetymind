@@ -1,13 +1,12 @@
 """
-SafetyMind Vercel Entry Point
-Optimized for serverless deployment
+SafetyMind Vercel Entry Point - Clean Version
 """
 
 import os
 import sys
 from pathlib import Path
 
-# Add src directory to Python path for Vercel
+# Add src directory to Python path
 project_root = Path(__file__).parent
 src_dir = project_root / "src"
 if str(src_dir) not in sys.path:
@@ -16,9 +15,8 @@ if str(src_dir) not in sys.path:
 try:
     # Import the FastAPI app
     from safetymind.api import create_app
-    
-    # Create the app instance
     app = create_app()
+    print("✅ SafetyMind app created successfully")
     
 except Exception as e:
     print(f"❌ Error creating app: {e}")
