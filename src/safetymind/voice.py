@@ -111,9 +111,32 @@ class VoiceManager:
             return None
     
     def transcribe_audio(self, audio_data: bytes) -> Tuple[Optional[str], Optional[float]]:
-        """Transcribe audio to text using speech recognition."""
+        """Transcribe audio to text using ElevenLabs Speech-to-Text."""
+        if not self.elevenlabs_client:
+            print("❌ ElevenLabs client not available")
+            return self._fallback_transcription(audio_data)
+        
+        try:
+            # Use ElevenLabs Speech-to-Text API
+            from elevenlabs import transcribe
+            
+            print("🎙️ Transcribing audio using ElevenLabs Speech-to-Text...")
+            
+            # Transcribe using ElevenLabs
+            transcript = transcribe(audio_data)
+            
+            print(f"✅ ElevenLabs transcription: {transcript[:50]}...")
+            return transcript, 0.9  # High confidence for ElevenLabs
+            
+        except Exception as e:
+            print(f"❌ ElevenLabs transcription failed: {e}")
+            # Fallback to browser speech recognition
+            return self._fallback_transcription(audio_data)
+    
+    def _fallback_transcription(self, audio_data: bytes) -> Tuple[Optional[str], Optional[float]]:
+        """Fallback transcription using browser speech recognition."""
         if not AUDIO_AVAILABLE or not self.recognizer:
-            print("⚠️ Speech recognition not available (Vercel deployment)")
+            print("⚠️ No fallback transcription available")
             return None, None
             
         try:
@@ -123,29 +146,29 @@ class VoiceManager:
             with sr.AudioFile(audio_file) as source:
                 audio = self.recognizer.record(source)
             
-            # Try Google Speech Recognition first
+            # Try Google Speech Recognition as fallback
             try:
                 transcript = self.recognizer.recognize_google(audio)
-                confidence = 0.8  # Google doesn't provide confidence scores
-                print(f"✅ Transcription successful: {transcript[:50]}...")
+                confidence = 0.7  # Lower confidence for fallback
+                print(f"✅ Fallback transcription: {transcript[:50]}...")
                 return transcript, confidence
             except sr.UnknownValueError:
-                print("⚠️ Google Speech Recognition could not understand audio")
+                print("⚠️ Fallback speech recognition could not understand audio")
             except sr.RequestError as e:
-                print(f"⚠️ Google Speech Recognition error: {e}")
+                print(f"⚠️ Fallback speech recognition error: {e}")
             
             # Fallback to other engines
             try:
                 transcript = self.recognizer.recognize_sphinx(audio)
-                confidence = 0.6
-                print(f"✅ Sphinx transcription: {transcript[:50]}...")
+                confidence = 0.5
+                print(f"✅ Sphinx fallback transcription: {transcript[:50]}...")
                 return transcript, confidence
             except Exception as e:
-                print(f"❌ All transcription methods failed: {e}")
+                print(f"❌ All fallback transcription methods failed: {e}")
                 return None, None
                 
         except Exception as e:
-            print(f"❌ Transcription failed: {e}")
+            print(f"❌ Fallback transcription failed: {e}")
             return None, None
     
     def parse_voice_input(self, transcript: str) -> Dict[str, Any]:
