@@ -1,1 +1,2 @@
-# No dependencies for ultra-minimal deployment
+# Vercel Python requirements
+# Minimal dependencies for SafetyMind API
