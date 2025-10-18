@@ -1,2 +1,1 @@
-# Vercel Python requirements
-# Minimal dependencies for SafetyMind API
+# No dependencies - pure Python
