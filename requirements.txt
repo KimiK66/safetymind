@@ -8,3 +8,5 @@ elevenlabs==0.2.26
 mem0ai==0.0.12
 groq==0.4.1
 sqlalchemy>=2.0.31
+pandas>=2.0.0
+requests>=2.31.0
