@@ -1,4 +1,4 @@
-# Ignore everything except the minimal deployment files
+# Ignore everything except api.py and vercel.json
 src/
 backup_apps/
 data/
@@ -21,3 +21,6 @@ k8s-deployment.yaml
 production_config.py
 setup_api_keys.sh
 supabase_schema.sql
+index.py
+error.csv
+requirements*.txt

@@ -11,13 +11,26 @@ class handler(BaseHTTPRequestHandler):
         response = {
             "message": "SafetyMind API working",
             "status": "success",
-            "version": "1.0.0"
+            "version": "1.0.0",
+            "method": "GET"
         }
         
         self.wfile.write(json.dumps(response).encode())
     
     def do_POST(self):
-        self.do_GET()  # Same response for POST
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        
+        response = {
+            "message": "SafetyMind API working",
+            "status": "success",
+            "version": "1.0.0",
+            "method": "POST"
+        }
+        
+        self.wfile.write(json.dumps(response).encode())
     
     def do_OPTIONS(self):
         self.send_response(200)
