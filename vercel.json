@@ -2,17 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "app_ultra_minimal.py",
+      "src": "api.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "app_ultra_minimal.py"
+      "dest": "api.py"
     }
-  ],
-  "env": {
-    "PYTHON_VERSION": "3.11"
-  }
+  ]
 }
