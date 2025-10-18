@@ -1,1 +1,1 @@
-# Empty requirements for basic Vercel function
+# No dependencies for ultra-minimal deployment

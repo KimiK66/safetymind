@@ -1,0 +1,23 @@
+# Ignore everything except the minimal deployment files
+src/
+backup_apps/
+data/
+docs/
+videos/
+web/
+__pycache__/
+*.db
+*.sql
+*.md
+*.sh
+*.yml
+*.yaml
+*.txt
+*.template
+test_*
+Dockerfile
+docker-compose.yml
+k8s-deployment.yaml
+production_config.py
+setup_api_keys.sh
+supabase_schema.sql
