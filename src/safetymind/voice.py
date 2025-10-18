@@ -19,6 +19,22 @@ try:
 except ImportError:
     AUDIO_AVAILABLE = False
     print("⚠️ Audio libraries not available (Vercel deployment)")
+    # Create dummy classes to prevent import errors
+    class sr:
+        class Recognizer:
+            pass
+        class Microphone:
+            pass
+        class AudioFile:
+            pass
+        class UnknownValueError(Exception):
+            pass
+        class RequestError(Exception):
+            pass
+    class pyaudio:
+        pass
+    class wave:
+        pass
 
 from elevenlabs import ElevenLabs, Voice, VoiceSettings
 
