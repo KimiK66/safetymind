@@ -1,7 +1,46 @@
-from safetymind.api import create_app
+"""
+SafetyMind Railway Entry Point
+Optimized for Railway deployment
+"""
 
-app = create_app()
+import os
+import sys
+from pathlib import Path
 
+# Add src directory to Python path
+project_root = Path(__file__).parent
+src_dir = project_root / "src"
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
+
+try:
+    # Import the FastAPI app
+    from safetymind.api import create_app
+    
+    # Create the app instance
+    app = create_app()
+    
+except Exception as e:
+    print(f"❌ Error creating app: {e}")
+    import traceback
+    traceback.print_exc()
+    
+    # Create a minimal FastAPI app as fallback
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+    
+    app = FastAPI(title="SafetyMind", description="AI-Powered Incident Reporting")
+    
+    @app.get("/")
+    def root():
+        return {"message": "SafetyMind API is running", "status": "error", "error": str(e)}
+    
+    @app.get("/health")
+    def health():
+        return {"status": "error", "error": str(e)}
+
+# For Railway deployment
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
