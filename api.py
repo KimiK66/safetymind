@@ -1,40 +1,27 @@
-from http.server import BaseHTTPRequestHandler
-import json
-
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-        
-        response = {
-            "message": "SafetyMind API working",
-            "status": "success",
-            "version": "1.0.0",
-            "method": "GET"
-        }
-        
-        self.wfile.write(json.dumps(response).encode())
+def handler(request, response):
+    """Modern Vercel Python function handler"""
+    # Set CORS headers
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Content-Type'] = 'application/json'
     
-    def do_POST(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.end_headers()
-        
-        response = {
-            "message": "SafetyMind API working",
-            "status": "success",
-            "version": "1.0.0",
-            "method": "POST"
-        }
-        
-        self.wfile.write(json.dumps(response).encode())
+    # Handle OPTIONS request for CORS preflight
+    if request.method == 'OPTIONS':
+        response.status_code = 200
+        return response
     
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
+    # Create response data
+    data = {
+        "message": "SafetyMind API working",
+        "status": "success",
+        "version": "1.0.0",
+        "method": request.method,
+        "path": request.path
+    }
+    
+    # Set response
+    response.status_code = 200
+    response.body = str(data).replace("'", '"')  # Convert to JSON string
+    
+    return response
