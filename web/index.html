@@ -1196,81 +1196,125 @@ document.getElementById('rev_capa_btn').addEventListener('click', async () => {
   }
 });
 
-// Voice Input Functionality
+// Voice Input Functionality - Browser-based Speech-to-Text
+let recognition = null;
 let isRecording = false;
-let mediaRecorder = null;
-let audioChunks = [];
 
-// Voice recording functions
-async function startVoiceRecording() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-    audioChunks = [];
+// Initialize Web Speech API
+function initializeSpeechRecognition() {
+  if ('webkitSpeechRecognition' in window) {
+    recognition = new webkitSpeechRecognition();
+  } else if ('SpeechRecognition' in window) {
+    recognition = new SpeechRecognition();
+  } else {
+    console.warn('Speech recognition not supported in this browser');
+    document.getElementById('voice-record-btn').disabled = true;
+    document.getElementById('voice-record-btn').innerHTML = '<span class="voice-icon">❌</span><span class="voice-text">Speech Not Supported</span>';
+    return false;
+  }
 
-    mediaRecorder.ondataavailable = (event) => {
-      audioChunks.push(event.data);
-    };
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
 
-    mediaRecorder.onstop = () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-      processVoiceInput(audioBlob);
-    };
-
-    mediaRecorder.start();
+  recognition.onstart = () => {
     isRecording = true;
-    
     document.getElementById('voice-record-btn').style.display = 'none';
     document.getElementById('voice-stop-btn').style.display = 'flex';
-    document.getElementById('voice-status').textContent = 'Recording...';
+    document.getElementById('voice-status').textContent = 'Listening...';
     document.getElementById('voice-status').className = 'voice-status recording';
-    
-  } catch (error) {
-    showMessage('Microphone access denied or not available', 'error');
-  }
-}
+  };
 
-function stopVoiceRecording() {
-  if (mediaRecorder && isRecording) {
-    mediaRecorder.stop();
-    isRecording = false;
+  recognition.onresult = (event) => {
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcript += event.results[i][0].transcript;
+    }
     
+    document.getElementById('voice-transcript').textContent = transcript;
+    document.getElementById('voice-transcript').style.display = 'block';
+    
+    // If this is the final result, process it
+    if (event.results[event.results.length - 1].isFinal) {
+      processVoiceTranscript(transcript);
+    }
+  };
+
+  recognition.onend = () => {
+    isRecording = false;
     document.getElementById('voice-record-btn').style.display = 'flex';
     document.getElementById('voice-stop-btn').style.display = 'none';
     document.getElementById('voice-status').textContent = 'Processing...';
     document.getElementById('voice-status').className = 'voice-status processing';
+  };
+
+  recognition.onerror = (event) => {
+    console.error('Speech recognition error:', event.error);
+    isRecording = false;
+    document.getElementById('voice-record-btn').style.display = 'flex';
+    document.getElementById('voice-stop-btn').style.display = 'none';
+    document.getElementById('voice-status').textContent = 'Error: ' + event.error;
+    document.getElementById('voice-status').className = 'voice-status error';
+    showMessage('Speech recognition error: ' + event.error, 'error');
+  };
+
+  return true;
+}
+
+// Voice recording functions
+async function startVoiceRecording() {
+  if (!recognition) {
+    if (!initializeSpeechRecognition()) {
+      showMessage('Speech recognition not supported in this browser', 'error');
+      return;
+    }
+  }
+  
+  try {
+    recognition.start();
+  } catch (error) {
+    console.error('Error starting speech recognition:', error);
+    showMessage('Error starting speech recognition: ' + error.message, 'error');
   }
 }
 
-async function processVoiceInput(audioBlob) {
+function stopVoiceRecording() {
+  if (recognition && isRecording) {
+    recognition.stop();
+  }
+}
+
+// Process voice transcript using AI parsing
+async function processVoiceTranscript(transcript) {
   try {
-    const formData = new FormData();
-    formData.append('audio', audioBlob, 'recording.wav');
-
-    const response = await fetch(`${API}/reports/voice`, {
+    // Send transcript to AI parsing endpoint
+    const response = await fetch(`${API}/reports/voice/parse`, {
       method: 'POST',
-      headers: basicAuthHeader(),
-      body: formData
+      headers: {
+        'Content-Type': 'application/json',
+        ...basicAuthHeader()
+      },
+      body: JSON.stringify({ transcript: transcript })
     });
-
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
     const result = await response.json();
     
-    if (result.transcript) {
-      document.getElementById('transcript-text').value = result.transcript;
-      document.getElementById('voice-transcript').style.display = 'block';
-      
-      if (result.parsed_fields) {
-        displayVoiceAnalysis(result.parsed_fields);
-      }
+    if (result.parsed_fields) {
+      displayVoiceAnalysis(result.parsed_fields);
     }
     
     document.getElementById('voice-status').textContent = 'Completed';
-    document.getElementById('voice-status').className = 'voice-status completed';
+    document.getElementById('voice-status').className = 'voice-status success';
     
   } catch (error) {
-    showMessage('Voice processing failed: ' + error.message, 'error');
+    console.error('Voice parsing error:', error);
+    showMessage('Voice parsing failed: ' + error.message, 'error');
     document.getElementById('voice-status').textContent = 'Failed';
-    document.getElementById('voice-status').className = 'voice-status';
+    document.getElementById('voice-status').className = 'voice-status error';
   }
 }
 
@@ -1278,8 +1322,41 @@ function displayVoiceAnalysis(fields) {
   const preview = document.getElementById('voice-fields-preview');
   preview.innerHTML = '';
   
+  // Populate form fields with parsed data
+  if (fields.title) {
+    document.getElementById('title').value = fields.title;
+  }
+  if (fields.description) {
+    document.getElementById('description').value = fields.description;
+  }
+  if (fields.event_type) {
+    document.getElementById('event_type').value = fields.event_type;
+  }
+  if (fields.location) {
+    document.getElementById('location').value = fields.location;
+  }
+  if (fields.activity) {
+    document.getElementById('activity').value = fields.activity;
+  }
+  if (fields.weather) {
+    document.getElementById('weather').value = fields.weather;
+  }
+  if (fields.time_of_day) {
+    document.getElementById('time_of_day').value = fields.time_of_day;
+  }
+  if (fields.witnesses) {
+    document.getElementById('witnesses').value = fields.witnesses;
+  }
+  if (fields.equipment) {
+    document.getElementById('equipment').value = fields.equipment;
+  }
+  if (fields.cost_estimate) {
+    document.getElementById('cost_estimate').value = fields.cost_estimate;
+  }
+  
+  // Display preview of parsed fields
   Object.entries(fields).forEach(([field, value]) => {
-    if (value) {
+    if (value && value !== '') {
       const fieldDiv = document.createElement('div');
       fieldDiv.className = 'field-preview';
       fieldDiv.innerHTML = `<strong>${field}:</strong> ${value}`;

@@ -332,6 +332,29 @@ def create_app() -> FastAPI:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Field voice processing failed: {str(e)}")
 
+    @app.post("/reports/voice/parse")
+    def api_parse_voice_transcript(
+        request: dict,
+        user=Depends(get_current_user)
+    ):
+        """Parse voice transcript and extract structured data."""
+        try:
+            transcript = request.get("transcript", "")
+            if not transcript:
+                raise HTTPException(status_code=400, detail="No transcript provided")
+            
+            # Parse voice input to extract fields
+            parsed_fields = parse_voice_input(transcript)
+            
+            return {
+                "transcript": transcript,
+                "parsed_fields": parsed_fields,
+                "success": True
+            }
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Voice parsing failed: {str(e)}")
+
     # Video generation endpoints removed for performance optimization
     # Memory Endpoints
     @app.get("/memory/similar/{report_id}")

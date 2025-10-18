@@ -151,9 +151,57 @@ class VoiceManager:
     def parse_voice_input(self, transcript: str) -> Dict[str, Any]:
         """Parse natural language input to extract structured data."""
         try:
-            # Use Groq for intelligent parsing (will be implemented in groq_analysis.py)
-            # For now, use simple keyword matching
+            # Use Groq for intelligent parsing if available
+            try:
+                from .groq_analysis import GroqClient
+                groq_client = GroqClient()
+                
+                prompt = f"""
+                Analyze the following incident description and extract the following fields:
+                - title (short summary)
+                - description (detailed account)
+                - event_type (NearMiss, Incident, Accident - choose the most appropriate)
+                - location (e.g., Platform A, Compression Station, Pipeline)
+                - activity (e.g., maintenance, inspection, operation)
+                - weather (e.g., Clear, Rain, Wind, Storm, Fog, Hot, Cold)
+                - time_of_day (e.g., Morning, Afternoon, Evening, Night)
+                - witnesses (comma-separated names, if mentioned)
+                - equipment (comma-separated equipment, if mentioned)
+                - cost_estimate (numeric value, if mentioned)
+
+                If a field is not explicitly mentioned or cannot be inferred, leave it as null.
+                Return the output as a JSON object.
+
+                Incident Description: "{transcript}"
+                """
+                
+                response = groq_client.chat_completion(prompt)
+                
+                # Attempt to parse the response as JSON
+                import json
+                parsed_data = json.loads(response)
+                
+                # Ensure keys match expected model fields
+                extracted_fields = {
+                    "title": parsed_data.get("title"),
+                    "description": parsed_data.get("description"),
+                    "event_type": parsed_data.get("event_type"),
+                    "location": parsed_data.get("location"),
+                    "activity": parsed_data.get("activity"),
+                    "weather": parsed_data.get("weather"),
+                    "time_of_day": parsed_data.get("time_of_day"),
+                    "witnesses": parsed_data.get("witnesses"),
+                    "equipment": parsed_data.get("equipment"),
+                    "cost_estimate": parsed_data.get("cost_estimate")
+                }
+                return {k: v for k, v in extracted_fields.items() if v is not None}
+                
+            except Exception as e:
+                print(f"❌ Groq parsing failed, using fallback: {e}")
+                # Fallback to simple keyword matching
+                pass
             
+            # Simple keyword matching fallback
             parsed_data = {
                 "title": "",
                 "description": transcript,
