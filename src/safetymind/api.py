@@ -24,6 +24,11 @@ from .storage import init_db, create_report, search_reports, get_report
 from .ai import analyze_report
 from .benchmark import load_oil_gas_benchmark, compute_org_metrics, compare_to_benchmark
 from .voice import initialize_elevenlabs, transcribe_audio, parse_voice_input, generate_voice_response
+from .multilingual_voice import (
+    get_supported_languages, set_voice_language, get_current_voice_language,
+    generate_multilingual_voice, generate_safety_alert, generate_training_content,
+    generate_incident_analysis
+)
 from .memory import initialize_mem0, store_user_preference, get_user_context, get_similar_incidents
 from .groq_analysis import initialize_groq, analyze_with_groq
 # Video generation removed for performance optimization
@@ -354,6 +359,154 @@ def create_app() -> FastAPI:
             
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Voice parsing failed: {str(e)}")
+
+    # Multilingual Voice Endpoints
+    @app.get("/voice/languages")
+    def api_get_supported_languages(user=Depends(get_current_user)):
+        """Get list of supported languages for voice generation."""
+        try:
+            languages = get_supported_languages()
+            current_language = get_current_voice_language()
+            
+            return {
+                "supported_languages": languages,
+                "current_language": current_language,
+                "count": len(languages)
+            }
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to get supported languages: {str(e)}")
+
+    @app.post("/voice/language/{language_code}")
+    def api_set_voice_language(language_code: str, user=Depends(get_current_user)):
+        """Set the current language for voice generation."""
+        try:
+            success = set_voice_language(language_code)
+            if success:
+                current_language = get_current_voice_language()
+                return {
+                    "success": True,
+                    "language_code": language_code,
+                    "current_language": current_language,
+                    "message": f"Language set to {language_code}"
+                }
+            else:
+                raise HTTPException(status_code=400, detail=f"Unsupported language: {language_code}")
+                
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to set language: {str(e)}")
+
+    @app.post("/voice/generate")
+    def api_generate_multilingual_voice(
+        request: dict,
+        user=Depends(get_current_user)
+    ):
+        """Generate voice in specified language."""
+        try:
+            text = request.get("text", "")
+            language_code = request.get("language_code")
+            
+            if not text:
+                raise HTTPException(status_code=400, detail="No text provided")
+            
+            audio_bytes = generate_multilingual_voice(text, language_code)
+            
+            if audio_bytes:
+                return {
+                    "success": True,
+                    "audio_size": len(audio_bytes),
+                    "language_code": language_code or get_current_voice_language(),
+                    "message": "Voice generated successfully"
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to generate voice")
+                
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Voice generation failed: {str(e)}")
+
+    @app.post("/voice/safety-alert")
+    def api_generate_safety_alert(
+        request: dict,
+        user=Depends(get_current_user)
+    ):
+        """Generate safety alert in specified language."""
+        try:
+            alert_text = request.get("alert_text", "")
+            language_code = request.get("language_code")
+            
+            if not alert_text:
+                raise HTTPException(status_code=400, detail="No alert text provided")
+            
+            audio_bytes = generate_safety_alert(alert_text, language_code)
+            
+            if audio_bytes:
+                return {
+                    "success": True,
+                    "audio_size": len(audio_bytes),
+                    "language_code": language_code or get_current_voice_language(),
+                    "message": "Safety alert generated successfully"
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to generate safety alert")
+                
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Safety alert generation failed: {str(e)}")
+
+    @app.post("/voice/training")
+    def api_generate_training_content(
+        request: dict,
+        user=Depends(get_current_user)
+    ):
+        """Generate training content in specified language."""
+        try:
+            content = request.get("content", "")
+            language_code = request.get("language_code")
+            
+            if not content:
+                raise HTTPException(status_code=400, detail="No content provided")
+            
+            audio_bytes = generate_training_content(content, language_code)
+            
+            if audio_bytes:
+                return {
+                    "success": True,
+                    "audio_size": len(audio_bytes),
+                    "language_code": language_code or get_current_voice_language(),
+                    "message": "Training content generated successfully"
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to generate training content")
+                
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Training content generation failed: {str(e)}")
+
+    @app.post("/voice/incident-analysis")
+    def api_generate_incident_analysis(
+        request: dict,
+        user=Depends(get_current_user)
+    ):
+        """Generate incident analysis in specified language."""
+        try:
+            analysis = request.get("analysis", "")
+            language_code = request.get("language_code")
+            
+            if not analysis:
+                raise HTTPException(status_code=400, detail="No analysis provided")
+            
+            audio_bytes = generate_incident_analysis(analysis, language_code)
+            
+            if audio_bytes:
+                return {
+                    "success": True,
+                    "audio_size": len(audio_bytes),
+                    "language_code": language_code or get_current_voice_language(),
+                    "message": "Incident analysis generated successfully"
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Failed to generate incident analysis")
+                
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Incident analysis generation failed: {str(e)}")
 
     # Video generation endpoints removed for performance optimization
     # Memory Endpoints

@@ -74,6 +74,48 @@ VOICE_MODEL_ID = os.getenv("VOICE_MODEL_ID", "eleven_multilingual_v2")
 VOICE_SPEED = float(os.getenv("VOICE_SPEED", "1.0"))
 VOICE_STABILITY = float(os.getenv("VOICE_STABILITY", "0.5"))
 
+# Multilingual Voice Configuration
+SUPPORTED_LANGUAGES = {
+    "en": {
+        "name": "English",
+        "voice_id": "pNInz6obpgDQGcFmaJgB",  # Default English voice
+        "code": "en-US"
+    },
+    "es": {
+        "name": "Spanish", 
+        "voice_id": "EXAVITQu4vr4xnSDxMaL",  # Spanish voice
+        "code": "es-ES"
+    },
+    "fr": {
+        "name": "French",
+        "voice_id": "VR6AewLTigWG4xSOukaG",  # French voice
+        "code": "fr-FR"
+    },
+    "de": {
+        "name": "German",
+        "voice_id": "ErXwobaYiN019PkySvjV",  # German voice
+        "code": "de-DE"
+    },
+    "ar": {
+        "name": "Arabic",
+        "voice_id": "VR6AewLTigWG4xSOukaG",  # Arabic voice (fallback)
+        "code": "ar-SA"
+    },
+    "pt": {
+        "name": "Portuguese",
+        "voice_id": "VR6AewLTigWG4xSOukaG",  # Portuguese voice (fallback)
+        "code": "pt-BR"
+    },
+    "zh": {
+        "name": "Chinese",
+        "voice_id": "VR6AewLTigWG4xSOukaG",  # Chinese voice (fallback)
+        "code": "zh-CN"
+    }
+}
+
+# Default language
+DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en")
+
 # Mem0 Memory Configuration
 MEMORY_MAX_CONTEXT_SIZE = int(os.getenv("MEMORY_MAX_CONTEXT_SIZE", "10000"))
 MEMORY_LEARNING_RATE = float(os.getenv("MEMORY_LEARNING_RATE", "0.1"))
@@ -123,10 +165,8 @@ def get_config() -> Dict[str, Any]:
         "voice_model_id": VOICE_MODEL_ID,
         "voice_speed": VOICE_SPEED,
         "voice_stability": VOICE_STABILITY,
-        # Video Configuration
-        "veo_model": VEO_MODEL,
-        "veo_max_duration": VEO_MAX_DURATION_SECONDS,
-        "veo_quality": VEO_QUALITY,
+        "supported_languages": SUPPORTED_LANGUAGES,
+        "default_language": DEFAULT_LANGUAGE,
         # Memory Configuration
         "memory_max_context": MEMORY_MAX_CONTEXT_SIZE,
         "memory_learning_rate": MEMORY_LEARNING_RATE,
@@ -134,9 +174,6 @@ def get_config() -> Dict[str, Any]:
         "groq_model": GROQ_MODEL,
         "groq_max_tokens": GROQ_MAX_TOKENS,
         "groq_temperature": GROQ_TEMPERATURE,
-        # Storage Configuration
-        "video_storage_path": VIDEO_STORAGE_PATH,
-        "max_video_size_mb": MAX_VIDEO_SIZE_MB,
         # Audio Configuration
         "audio_sample_rate": AUDIO_SAMPLE_RATE,
         "audio_channels": AUDIO_CHANNELS,

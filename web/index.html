@@ -113,6 +113,38 @@
       margin-bottom: 16px;
     }
 
+    .language-selection {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border: 1px solid #e9ecef;
+    }
+
+    .language-selection label {
+      font-weight: 600;
+      color: #495057;
+      margin: 0;
+    }
+
+    .language-select {
+      padding: 6px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      background: white;
+      font-size: 14px;
+      min-width: 150px;
+    }
+
+    .language-select:focus {
+      outline: none;
+      border-color: #0ea5e9;
+      box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1);
+    }
+
     .voice-analysis {
       background: #e3f2fd;
       padding: 16px;
@@ -371,6 +403,22 @@
   <!-- Voice Input Panel -->
   <section id="voice-panel">
     <h2>🎤 Voice Input</h2>
+    
+    <!-- Language Selection -->
+    <div class="language-selection">
+      <label for="voice-language">🌍 Voice Language:</label>
+      <select id="voice-language" class="language-select">
+        <option value="en">🇺🇸 English</option>
+        <option value="es">🇪🇸 Spanish</option>
+        <option value="fr">🇫🇷 French</option>
+        <option value="de">🇩🇪 German</option>
+        <option value="ar">🇸🇦 Arabic</option>
+        <option value="pt">🇧🇷 Portuguese</option>
+        <option value="zh">🇨🇳 Chinese</option>
+      </select>
+      <button id="set-language-btn" class="voice-btn">Set Language</button>
+    </div>
+    
     <div class="voice-controls">
       <button id="voice-record-btn" class="voice-btn">
         <span class="voice-icon">🎤</span>
@@ -1294,7 +1342,10 @@ async function processVoiceTranscript(transcript) {
         'Content-Type': 'application/json',
         ...basicAuthHeader()
       },
-      body: JSON.stringify({ transcript: transcript })
+      body: JSON.stringify({ 
+        transcript: transcript,
+        language_code: currentVoiceLanguage 
+      })
     });
     
     if (!response.ok) {
@@ -1305,6 +1356,16 @@ async function processVoiceTranscript(transcript) {
     
     if (result.parsed_fields) {
       displayVoiceAnalysis(result.parsed_fields);
+      
+      // Generate multilingual voice response for AI analysis
+      const analysisText = Object.entries(result.parsed_fields)
+        .filter(([key, value]) => value && value !== '')
+        .map(([key, value]) => `${key}: ${value}`)
+        .join('. ');
+      
+      if (analysisText) {
+        await generateMultilingualVoice(analysisText, currentVoiceLanguage);
+      }
     }
     
     document.getElementById('voice-status').textContent = 'Completed';
@@ -1370,6 +1431,63 @@ function displayVoiceAnalysis(fields) {
 // Voice button event listeners
 document.getElementById('voice-record-btn').onclick = startVoiceRecording;
 document.getElementById('voice-stop-btn').onclick = stopVoiceRecording;
+
+// Language selection functionality
+let currentVoiceLanguage = 'en';
+
+async function setVoiceLanguage() {
+  const languageCode = document.getElementById('voice-language').value;
+  
+  try {
+    const response = await fetch(`${API}/voice/language/${languageCode}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...basicAuthHeader()
+      }
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      currentVoiceLanguage = languageCode;
+      showMessage(`Voice language set to ${result.current_language}`, 'success');
+    } else {
+      throw new Error('Failed to set language');
+    }
+  } catch (error) {
+    showMessage('Failed to set voice language: ' + error.message, 'error');
+  }
+}
+
+async function generateMultilingualVoice(text, languageCode = null) {
+  try {
+    const response = await fetch(`${API}/voice/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...basicAuthHeader()
+      },
+      body: JSON.stringify({
+        text: text,
+        language_code: languageCode || currentVoiceLanguage
+      })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      showMessage(`Voice generated in ${result.language_code}`, 'success');
+      return true;
+    } else {
+      throw new Error('Failed to generate voice');
+    }
+  } catch (error) {
+    showMessage('Failed to generate voice: ' + error.message, 'error');
+    return false;
+  }
+}
+
+// Language selection event listener
+document.getElementById('set-language-btn').onclick = setVoiceLanguage;
 
 document.getElementById('voice-apply-btn').onclick = () => {
   const transcript = document.getElementById('transcript-text').value;
